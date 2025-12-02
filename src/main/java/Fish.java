@@ -6,8 +6,8 @@ import java.util.Random;
 
 public class Fish {
 
-    private List<BufferedImage> animA = new ArrayList<>();
-    private List<BufferedImage> animB = new ArrayList<>();
+    private List<BufferedImage> fishAnimA = new ArrayList<>();
+    private List<BufferedImage> fishAnimB = new ArrayList<>();
 
     private int totalFrames;
     private int currentFrame = 0;
@@ -25,15 +25,15 @@ public class Fish {
 
     public Fish(int panelW, int panelH) {
         int index = random.nextInt(FRAME_COUNTS.length) + 1;
-        BufferedImage sheet = ImageUtil.getImage("images/fish" + index + ".png");
-        if (sheet == null) {
+        BufferedImage fishImg = ImageUtil.getImage("images/fish" + index + ".png");
+        if (fishImg == null) {
             System.err.println("Missing fish image: fish" + index + ".png");
             return;
         }
 
         totalFrames = FRAME_COUNTS[index - 1];
-        w = sheet.getWidth();
-        h = sheet.getHeight() / totalFrames;  // 单帧高度
+        w = fishImg.getWidth();
+        h = fishImg.getHeight() / totalFrames;  // 单帧高度
 
         // 随机初始位置
         x = random.nextInt(panelW - w);
@@ -51,16 +51,16 @@ public class Fish {
         activeAnim = random.nextBoolean() ? 0 : 1;
 
         int half = totalFrames / 2;
-        for (int i = 0; i < half; i++) animA.add(sheet.getSubimage(0, i * h, w, h));
-        for (int i = half; i < totalFrames; i++) animB.add(sheet.getSubimage(0, i * h, w, h));
+        for (int i = 0; i < half; i++) fishAnimA.add(fishImg.getSubimage(0, i * h, w, h));
+        for (int i = half; i < totalFrames; i++) fishAnimB.add(fishImg.getSubimage(0, i * h, w, h));
     }
 
     // 更新鱼状态
     public void update(int panelW, int panelH) {
         // 更新帧动画
         currentFrame++;
-        if (activeAnim == 0 && !animA.isEmpty()) currentFrame %= animA.size();
-        if (activeAnim == 1 && !animB.isEmpty()) currentFrame %= animB.size();
+        if (activeAnim == 0 && !fishAnimB.isEmpty()) currentFrame %= fishAnimB.size();
+        if (activeAnim == 1 && !fishAnimB.isEmpty()) currentFrame %= fishAnimB.size();
 
         // 水平移动
         x += movingRight ? speed : -speed;
@@ -88,9 +88,9 @@ public class Fish {
 
     // 绘制鱼
     public void draw(Graphics g) {
-        if (animA.isEmpty() || animB.isEmpty()) return;
+        if (fishAnimB.isEmpty() || fishAnimB.isEmpty()) return;
 
-        BufferedImage frame = activeAnim == 0 ? animA.get(currentFrame) : animB.get(currentFrame);
+        BufferedImage frame = activeAnim == 0 ? fishAnimB.get(currentFrame) : fishAnimB.get(currentFrame);
 
         // 水平翻转
         if (!movingRight) {
