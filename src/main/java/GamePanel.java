@@ -18,7 +18,6 @@ public class GamePanel extends JPanel {
     private Cannon cannon;
     private int bottomBarHeight;
 
-    // 在 GamePanel 类里加上（和 fishes、cannon 同级）
     private final Random random = new Random();
 
     // 鱼群刷新的计时器（按帧计数）
@@ -28,30 +27,58 @@ public class GamePanel extends JPanel {
     private static final int GROUP_INTERVAL = 180;
 
 
-    // 底部栏内部炮槽中心（我们已经精确计算过了）
+    // 底部栏内部炮槽中心（
     private final int bottomBarLocalCannonX = 427;
-
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+        Graphics2D g2 = (Graphics2D) g;
 
-        // 背景（无缩放）
-        g.drawImage(bgImage, 0, 0, null);
+        // --- 抗锯齿 ---
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING,
+                RenderingHints.VALUE_RENDER_QUALITY);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // 鱼
+        // --- 1. 绘制背景（居中显示） ---
+        int x = (getWidth() - bgImage.getWidth()) / 2;
+        int y = (getHeight() - bgImage.getHeight()) / 2;
+        g2.drawImage(bgImage, x, y, null);
+
+        // --- 2. 加水下蓝色渐变蒙版（更梦幻） ---
+        GradientPaint gp = new GradientPaint(
+                0, 0, new Color(0, 80, 200, 70),
+                0, getHeight(), new Color(0, 0, 50, 180)
+        );
+        g2.setPaint(gp);
+        g2.fillRect(0, 0, getWidth(), getHeight());
+
+        // --- 3. 添加光效（上方亮、下方暗）---
+        GradientPaint light = new GradientPaint(
+                getWidth() / 2f, 0, new Color(255, 255, 255, 120),
+                getWidth() / 2f, getHeight() / 2f, new Color(255, 255, 255, 0)
+        );
+        g2.setPaint(light);
+        g2.fillRect(0, 0, getWidth(), getHeight());
+
+        // --- 4. 绘制鱼 ---
         for (Fish fish : fishes) {
-            fish.draw(g);
+            fish.draw(g2);
         }
 
-        // 炮台
-        cannon.draw(g);
-
-        // 底部栏
+        // --- 5. 底部栏 ---
         int bottomBarX = (bgWidth - bottomImage.getWidth()) / 2;
-        int bottomBarY = bgHeight - bottomBarHeight - 30;
-        g.drawImage(bottomImage, bottomBarX, bottomBarY, null);
+        int bottomBarY = bgHeight - bottomBarHeight - 20; // 稍微抬高一点更美观
+        g2.drawImage(bottomImage, bottomBarX, bottomBarY, null);
+
+        // --- 6. 绘制炮台 ---
+        cannon.draw(g2);
+
     }
+
 
     /**
      * 生成一批鱼群（同方向成群进入）
@@ -73,7 +100,8 @@ public class GamePanel extends JPanel {
 
         for (int i = 0; i < count; i++) {
 
-            Fish fish = new Fish(panelW, panelH);
+            // 获取一条鱼（使用工厂）
+            Fish fish = FishFactory.spawnNormal(bgWidth, bgHeight);
 
             // —— 覆盖 Fish 自己的出生位置，强制做成鱼群 ——
             if (fromLeft) {
@@ -82,7 +110,7 @@ public class GamePanel extends JPanel {
                 fish.x = panelW + fish.w + i * 40;         // 从右侧排队进场
             }
 
-            fish.y = baseY + random.nextInt(80) - 40;      // 上下轻微乱一点
+            fish.y = baseY + random.nextInt(80) - 40;      // 上下微乱
 
             fish.targetX = fromLeft ? panelW + 200 : -200; // 目标游出对侧
             fish.targetY = fish.y + random.nextInt(120) - 60;
@@ -95,7 +123,7 @@ public class GamePanel extends JPanel {
     }
 
 
-    public int getBgHeight() {
+        public int getBgHeight() {
         return bgHeight;
     }
 
@@ -116,7 +144,8 @@ public class GamePanel extends JPanel {
 
         // 初始化鱼
         for (int i = 0; i < fishNum; i++) {
-            fishes.add(new Fish(bgWidth, bgHeight));
+            fishes.add(FishFactory.spawnNormal(bgWidth, bgHeight)
+            );
         }
 
         // ===== 计算底部栏绘制位置（固定窗口，不需要随窗口变化） =====
@@ -128,19 +157,32 @@ public class GamePanel extends JPanel {
 
         // 炮台旋转监听
         addMouseMotionListener(new MouseAdapter() {
-            @Override
-            public void mouseMoved(MouseEvent e) {
-                cannon.updateRotate(e.getX(), e.getY());
-            }
         });
+
 
         // 开火监听
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
+
+                // 如果点的是按钮，则不旋转、不发射
+                if (cannon.onButtonClick(e.getX(), e.getY()))
+                    return;
+
+                // 炮口立即指向鼠标
+                cannon.rotateTo(e.getX(), e.getY());
+
+                // 发射
                 cannon.shoot();
             }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                cannon.onMouseReleased();
+            }
         });
+
+
 
         // 定时器刷新动画（固定窗口大小，不需要更新位置）
         Timer timer = new Timer(100, e -> {
@@ -158,7 +200,8 @@ public class GamePanel extends JPanel {
 
             // 3. 保持零散鱼数量
             while (fishes.size() < 15) {
-                fishes.add(new Fish(w, h));
+                fishes.add(FishFactory.spawnNormal(bgWidth, bgHeight)
+                );
             }
 
             // 4. 鱼群计时 & 不停刷鱼群
