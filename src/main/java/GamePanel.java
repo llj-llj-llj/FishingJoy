@@ -18,6 +18,8 @@ public class GamePanel extends JPanel {
     private Cannon cannon;
     private int bottomBarHeight;
 
+    private final java.util.List<Bullet> bullets = new ArrayList<>();
+
     private final Random random = new Random();
 
     // 鱼群刷新的计时器（按帧计数）
@@ -76,6 +78,10 @@ public class GamePanel extends JPanel {
 
         // --- 6. 绘制炮台 ---
         cannon.draw(g2);
+        // ---7  绘制子弹 ---
+        for (Bullet b : bullets) {
+            b.draw(g2);
+        }
 
     }
 
@@ -123,7 +129,7 @@ public class GamePanel extends JPanel {
     }
 
 
-        public int getBgHeight() {
+    public int getBgHeight() {
         return bgHeight;
     }
 
@@ -174,6 +180,13 @@ public class GamePanel extends JPanel {
 
                 // 发射
                 cannon.shoot();
+                // 获取炮口尖端
+                Point muzzle = cannon.getMuzzlePoint();
+                double angle = cannon.getAngle();
+                int cannonLevel = cannon.getLevel();
+                // 发射子弹
+                // 发射子弹（使用角度而不是目标点）
+                bullets.add(new Bullet(muzzle.x, muzzle.y, angle,cannonLevel));
             }
 
             @Override
@@ -181,7 +194,6 @@ public class GamePanel extends JPanel {
                 cannon.onMouseReleased();
             }
         });
-
 
 
         // 定时器刷新动画（固定窗口大小，不需要更新位置）
@@ -213,6 +225,14 @@ public class GamePanel extends JPanel {
 
             // 5. 更新炮台动画
             cannon.update();
+            //6.更新子弹
+            for (Bullet b : bullets) {
+                b.update();
+            }
+            // 删除出屏幕的子弹
+            bullets.removeIf(b -> b.isOutOfScreen(bgWidth, bgHeight));
+
+
 
             repaint();
 

@@ -5,13 +5,16 @@ import java.util.List;
 
 public class Cannon {
 
-    /** 单个等级的炮台资源 */
+
+    /** 单个等级的炮台资源（包含子弹类型） */
     private static class CannonLevel {
         List<BufferedImage> idleFrames = new ArrayList<>();
         List<BufferedImage> fireFrames = new ArrayList<>();
         int width;
         int height;
         int contentBottomY;
+
+
     }
 
     private final List<CannonLevel> levels = new ArrayList<>();
@@ -99,6 +102,10 @@ public class Cannon {
         lvl.contentBottomY = calcContentBottomY(frames[idleIndex]);
 
         levels.add(lvl);
+    }
+    /** 返回当前炮台等级（0~6） */
+    public int getLevel() {
+        return levelIndex+1;
     }
 
     /** 切换炮等级 */
@@ -204,5 +211,39 @@ public class Cannon {
             }
         }
         return img.getHeight() - 1;
+    }
+    /** 获取炮口中心X坐标 */
+    public int getCenterX() {
+        return x + w / 2;
+    }
+
+    /** 获取炮口中心Y坐标（内容底部对齐位置） */
+    public int getCenterY() {
+        CannonLevel lvl = levels.get(levelIndex);
+        return y + lvl.contentBottomY;
+    }
+
+    /** 获取炮口尖端坐标，用于子弹发射 */
+    public Point getMuzzlePoint() {
+        CannonLevel lvl = levels.get(levelIndex);
+
+        // 炮台中心坐标
+        double centerX = x + w / 2.0;
+        double centerY = y + h / 2.0;
+
+        // 炮口在炮管末端的偏移量（从中心到炮口的距离）
+        // 通常炮管长度大约是炮台高度的一半，可以根据实际图片调整
+        double muzzleLength = lvl.height * 0.4; // 炮管长度，调整这个值
+
+        // 计算炮口尖端坐标
+        double muzzleX = centerX + Math.cos(angle) * muzzleLength;
+        double muzzleY = centerY + Math.sin(angle) * muzzleLength;
+
+        return new Point((int)muzzleX, (int)muzzleY);
+    }
+
+    /** 获取当前角度 */
+    public double getAngle() {
+        return angle;
     }
 }
