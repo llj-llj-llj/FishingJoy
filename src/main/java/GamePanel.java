@@ -19,6 +19,7 @@ public class GamePanel extends JPanel {
     private int bottomBarHeight;
 
     private final java.util.List<Bullet> bullets = new ArrayList<>();
+    private final List<Web> webs = new ArrayList<>();
 
     private final Random random = new Random();
 
@@ -82,6 +83,14 @@ public class GamePanel extends JPanel {
         for (Bullet b : bullets) {
             b.draw(g2);
         }
+        // --- 8. 绘制渔网 ---
+        for (Web w : webs) {
+            w.draw(g2);
+        }
+
+// 可以顺便删除已经标记为 remove 的网
+        webs.removeIf(Web::isRemove);
+
 
     }
 
@@ -228,10 +237,27 @@ public class GamePanel extends JPanel {
             //6.更新子弹
             for (Bullet b : bullets) {
                 b.update();
+                // 检查每条鱼
+                for (Fish f : fishes) {
+                    if (!b.isVanished() && b.intersectsFish(f)) {
+                        // 生成网（等级等于炮台等级）
+                        Web web = b.createWeb();
+                        webs.add(web);
+                        b.vanish();   //  子弹不再绘制
+                        b.setRemove(true);     // 让子弹停下
+                        break; // 子弹只撞一次就结束
+                    }
+                }
             }
             // 删除出屏幕的子弹
             bullets.removeIf(b -> b.isOutOfScreen(bgWidth, bgHeight));
 
+            // 更新渔网
+            for (Web web : webs) {
+                web.update();
+            }
+             // 移除已经透明消失的网
+            webs.removeIf(Web::isRemove);
 
 
             repaint();

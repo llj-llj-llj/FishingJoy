@@ -10,16 +10,18 @@ public class Bullet {
     public double x, y;       // 当前坐标
     private double vx, vy;    // 速度
     private double angle;     // 旋转角度
-    private final double speed = 15;
+    private final double speed =30 ;
 
     private BufferedImage img;
     private boolean remove = false;
-
+    private boolean vanished = false;
+    private int level;
     /** 构造方法：起点坐标 + 角度 */
     public Bullet(double startX, double startY, double angle,int cannonLevel) {
         this.x = startX;
         this.y = startY;
         this.angle = angle;
+        this.level = cannonLevel;
         // ----- 根据炮台等级读取图片 -----
         String imgPath = "images/bullet"+cannonLevel+".png";
         try {
@@ -36,27 +38,20 @@ public class Bullet {
         this.vx = Math.cos(angle) * speed;
         this.vy = Math.sin(angle) * speed;
 
-        try {
-            // 使用类路径加载资源
-            InputStream is = getClass().getClassLoader().getResourceAsStream(imgPath );
-            if (is != null) {
-                img = ImageIO.read(is);
-            } else {
-                System.err.println("无法加载子弹图片");
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     // 更新位置
     public void update() {
+        if (remove || vanished) return; // 已经碰撞就不再移动
         x += vx;
         y += vy;
     }
 
     // 绘制子弹（带旋转）
     public void draw(Graphics g) {
+
+            if (vanished) return;   // 已消失：不要画
+
         if (img != null) {
             Graphics2D g2 = (Graphics2D) g;
 
@@ -88,7 +83,17 @@ public class Bullet {
     public void setRemove(boolean remove) {
         this.remove = remove;
     }
+    public boolean shouldRemove() {
+        return remove;
+    }
 
+    public void vanish() {
+        this.vanished = true;
+    }
+
+    public boolean isVanished() {
+        return vanished;
+    }
     /** 获取边界（用于碰撞检测） */
     public Rectangle getBounds() {
         if (img == null) {
@@ -97,4 +102,18 @@ public class Bullet {
         return new Rectangle((int)x - img.getWidth()/2, (int)y - img.getHeight()/2,
                 img.getWidth(), img.getHeight());
     }
+    public boolean intersectsFish(Fish fish) {
+        // 子弹弹头位置（朝向角度的最前端）
+        double tipX = x + Math.cos(angle) * (img.getWidth() / 2);
+        double tipY = y + Math.sin(angle) * (img.getHeight() / 2);
+
+        Rectangle fishRect = fish.getBounds();
+
+        return fishRect.contains(tipX, tipY);
+    }
+
+    public Web createWeb() {
+        return new Web((int)x, (int)y, level);
+    }
+
 }
