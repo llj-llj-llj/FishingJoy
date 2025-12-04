@@ -43,8 +43,12 @@ public class GamePanel extends JPanel {
     private float feastHintAlpha = 1.0f;  // 透明度（淡出）
     private boolean feastTriggered = false;  // 是否已经触发过大餐
 
+    //子弹
+    private final java.util.List<Bullet> bullets = new ArrayList<>();
+    //网
+    private final List<Web> webs = new ArrayList<>();
 
-    // 底部栏内部炮槽中心
+    // 底部栏内部炮槽中心（
     private final int bottomBarLocalCannonX = 427;
 
     @Override
@@ -88,6 +92,18 @@ public class GamePanel extends JPanel {
 
         // 6. 炮台
         cannon.draw(g2);
+        // ---7  绘制子弹 ---
+        for (Bullet b : bullets) {
+            b.draw(g2);
+        }
+        // --- 8. 绘制渔网 ---
+        for (Web w : webs) {
+            w.draw(g2);
+        }
+
+// 可以顺便删除已经标记为 remove 的网
+        webs.removeIf(Web::isRemove);
+
 
         // 7. HUD —— 积分
         // 在底部栏左侧显示积分
@@ -210,7 +226,8 @@ public class GamePanel extends JPanel {
 
         // 初始化鱼
         for (int i = 0; i < fishNum; i++) {
-            fishes.add(FishFactory.spawnNormal(bgWidth, bgHeight));
+            fishes.add(FishFactory.spawnNormal(bgWidth, bgHeight)
+            );
         }
 
         // 炮台
@@ -227,6 +244,14 @@ public class GamePanel extends JPanel {
 
                 cannon.rotateTo(e.getX(), e.getY());
                 cannon.shoot();
+
+                // 获取炮口尖端
+                Point muzzle = cannon.getMuzzlePoint();
+                double angle = cannon.getAngle();
+                int cannonLevel = cannon.getLevel();
+                // 发射子弹
+                // 发射子弹（使用角度而不是目标点）
+                bullets.add(new Bullet(muzzle.
 
                 // 这里将来加入子弹消耗能量 player.useEnergy()
             }
@@ -302,6 +327,32 @@ public class GamePanel extends JPanel {
 
             // ===== 9. 炮台动画 =====
             cannon.update();
+
+            // ===== 10.更新子弹 =====
+            for (Bullet b : bullets) {
+                b.update();
+                // 检查每条鱼
+                for (Fish f : fishes) {
+                    if (!b.isVanished() && b.intersectsFish(f)) {
+                        // 生成网（等级等于炮台等级）
+                        Web web = b.createWeb();
+                        webs.add(web);
+                        b.vanish();   //  子弹不再绘制
+                        b.setRemove(true);     // 让子弹停下
+                        break; // 子弹只撞一次就结束
+                    }
+                }
+            }
+            // 删除出屏幕的子弹
+            bullets.removeIf(b -> b.isOutOfScreen(bgWidth, bgHeight));
+
+            // 更新渔网
+            for (Web web : webs) {
+                web.update();
+            }
+             // 移除已经透明消失的网
+            webs.removeIf(Web::isRemove);
+
 
             repaint();
         });

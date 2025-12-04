@@ -138,4 +138,8 @@ public class Fish {
     public boolean isOutOfScreen(int w, int h) {
         return x < -this.w * 2 || x > w + this.w * 2;
     }
+    public Rectangle getBounds() {
+        return new Rectangle(x, y, w, h);
+    }
+
 }
