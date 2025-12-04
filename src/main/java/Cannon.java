@@ -201,6 +201,8 @@ public class Cannon {
 
         g.drawImage(subPressed ? btnSubPressed : btnSubNormal, rectSub.x, rectSub.y, null);
         g.drawImage(addPressed ? btnAddPressed : btnAddNormal, rectAdd.x, rectAdd.y, null);
+
+
     }
 
     /** 底部计算 */
