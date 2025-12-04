@@ -251,7 +251,7 @@ public class GamePanel extends JPanel {
                 int cannonLevel = cannon.getLevel();
                 // 发射子弹
                 // 发射子弹（使用角度而不是目标点）
-                bullets.add(new Bullet(muzzle.
+                bullets.add(new Bullet(muzzle.x,muzzle.y,angle,cannonLevel));
 
                 // 这里将来加入子弹消耗能量 player.useEnergy()
             }
