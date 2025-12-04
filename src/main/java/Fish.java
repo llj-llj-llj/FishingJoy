@@ -140,7 +140,9 @@ public class Fish {
     public boolean shouldRemove() {
         return remove;
     }
-
+    public void markRemove() {
+        remove = true;
+    }
     public void draw(Graphics g) {
 
 

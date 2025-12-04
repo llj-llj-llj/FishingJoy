@@ -278,7 +278,7 @@ public class GamePanel extends JPanel {
 
             // ===== 2. 检测死亡鱼并触发金币动画 =====
             for (Fish fish : fishes) {
-                if (fish.isDead() && !fish.remove) {
+                if (fish.isDead() && !fish.shouldRemove()) {
 
                     // 底部栏金币槽目标位置
                     int bottomBarX = (bgWidth - bottomImage.getWidth()) / 2;
@@ -296,12 +296,12 @@ public class GamePanel extends JPanel {
                     ));
 
                     // 标记为已处理，避免重复加金币
-                    fish.remove = true;
+                    fish.markRemove();
                 }
             }
 
             // ===== 3. 删除离场 + 删除 dead fish =====
-            fishes.removeIf(f -> f.remove || f.isOutOfScreen(bgWidth, bgHeight));
+            fishes.removeIf(f -> f.shouldRemove() || f.isOutOfScreen(bgWidth, bgHeight));
 
             // ===== 4. 大餐触发 =====
             if (!feastTriggered && player.score >= 2000) {
