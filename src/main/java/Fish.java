@@ -10,20 +10,19 @@ public class Fish {
     public final String name;
     public final int maxHp;
     public int hp;
-    public final int score;
+    public int score;
     public final int energy;
 
-    public final boolean specialFreeze;
-    public final boolean highValue;
+    public boolean specialFreeze = false; // 是否为定身鱼（水母）
+    public boolean highValue;
 
-    private boolean dead = false;
-    private boolean remove = false;
+    public boolean dead = false;
+    public boolean remove = false;
 
-    private List<BufferedImage> swimAnim = new ArrayList<>();
-    private List<BufferedImage> deathAnim = new ArrayList<>();
+    public List<BufferedImage> swimAnim = new ArrayList<>();
+    public List<BufferedImage> deathAnim = new ArrayList<>();
 
-    private int currentFrame = 0;
-    private int activeAnim = 0;
+    public int currentFrame = 0;
 
     public int x, y, w, h;
     double targetX, targetY;
@@ -40,7 +39,10 @@ public class Fish {
         this.score = type.score;
         this.energy = type.energy;
 
+        //  定身鱼
         this.specialFreeze = (type == FishType.FISH7);
+
+        //  高价值鱼
         this.highValue = (type == FishType.SHARK_BLUE || type == FishType.SHARK_GOLD);
 
         BufferedImage sheet = ImageUtil.getImage(type.spritePath);
@@ -77,8 +79,10 @@ public class Fish {
         speedY = (random.nextDouble() - 0.5) * 1.5;
     }
 
-    public void update(int panelW, int panelH) {
+    /** 更新鱼状态 */
+    public void update(int panelW, int panelH, boolean freezeMode) {
 
+        // 死亡动画
         if (dead) {
             currentFrame++;
             if (currentFrame >= deathAnim.size())
@@ -86,6 +90,13 @@ public class Fish {
             return;
         }
 
+        //   冻结效果：普通鱼停住，定身鱼不受影响
+        if (freezeMode && !specialFreeze) {
+            currentFrame = (currentFrame + 1) % swimAnim.size(); // 还在播放动画
+            return;
+        }
+
+        // 正常游动
         currentFrame = (currentFrame + 1) % swimAnim.size();
 
         double dx = targetX - x;
@@ -100,19 +111,16 @@ public class Fish {
         }
     }
 
+    /** 被击中 */
     public void hit(int dmg) {
         if (dead) return;
+
         hp -= dmg;
         if (hp <= 0) {
             hp = 0;
             dead = true;
-            activeAnim = 1;
             currentFrame = 0;
         }
-    }
-
-    public boolean shouldRemove() {
-        return remove;
     }
 
     public void draw(Graphics g) {

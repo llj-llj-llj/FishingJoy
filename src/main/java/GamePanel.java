@@ -5,29 +5,46 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 public class GamePanel extends JPanel {
 
     private BufferedImage bgImage, bottomImage;
+    private BufferedImage energyBarImage;
     private int bgWidth, bgHeight;
 
-    private final int fishNum = 20;
     private final List<Fish> fishes = new ArrayList<>();
+    private final int fishNum = 20;
 
+    // 玩家
+    private Player player;
+    private ScoreRenderer scoreRenderer;
+
+
+    // 炮台
     private Cannon cannon;
     private int bottomBarHeight;
 
-    private final Random random = new Random();
-
-    // 鱼群刷新的计时器（按帧计数）
-    private int groupTimer = 0;
-
-    // 鱼群刷新的间隔帧数（比如 180 帧 ≈ 3 秒，取决于 Timer 间隔）
-    private static final int GROUP_INTERVAL = 180;
+    // 金币动画
+    private CoinManager coinManager = new CoinManager();
+    private BufferedImage coinSilverSheet;
+    private BufferedImage coinGoldSheet;
+    private BufferedImage coinTextImg;
 
 
-    // 底部栏内部炮槽中心（
+    // 特殊事件
+    private boolean feastMode = false;  // 鱼群大餐
+    private long feastEndTime = 0;
+    private boolean freezeMode = false; // 定身事件
+    private long freezeEndTime = 0;
+
+    // ======= 大餐提示显示 =======
+    private String feastHintText = null;  // 当前提示内容（瞬间设置）
+    private long feastHintEndTime = 0;    // 提示结束时间
+    private float feastHintAlpha = 1.0f;  // 透明度（淡出）
+    private boolean feastTriggered = false;  // 是否已经触发过大餐
+
+
+    // 底部栏内部炮槽中心
     private final int bottomBarLocalCannonX = 427;
 
     @Override
@@ -35,20 +52,15 @@ public class GamePanel extends JPanel {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
 
-        // --- 抗锯齿 ---
-        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2.setRenderingHint(RenderingHints.KEY_RENDERING,
-                RenderingHints.VALUE_RENDER_QUALITY);
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                RenderingHints.VALUE_ANTIALIAS_ON);
+        // 抗锯齿
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // --- 1. 绘制背景（居中显示） ---
+        // 1. 背景
         int x = (getWidth() - bgImage.getWidth()) / 2;
         int y = (getHeight() - bgImage.getHeight()) / 2;
         g2.drawImage(bgImage, x, y, null);
 
-        // --- 2. 加水下蓝色渐变蒙版（更梦幻） ---
+        // 2. 渐变蒙版
         GradientPaint gp = new GradientPaint(
                 0, 0, new Color(0, 80, 200, 70),
                 0, getHeight(), new Color(0, 0, 50, 180)
@@ -56,74 +68,119 @@ public class GamePanel extends JPanel {
         g2.setPaint(gp);
         g2.fillRect(0, 0, getWidth(), getHeight());
 
-        // --- 3. 添加光效（上方亮、下方暗）---
+        // 3. 光效
         GradientPaint light = new GradientPaint(
-                getWidth() / 2f, 0, new Color(255, 255, 255, 120),
-                getWidth() / 2f, getHeight() / 2f, new Color(255, 255, 255, 0)
+                getWidth() / 2f, 0,
+                new Color(255, 255, 255, 120),
+                getWidth() / 2f, getHeight() / 2f,
+                new Color(255, 255, 255, 0)
         );
         g2.setPaint(light);
         g2.fillRect(0, 0, getWidth(), getHeight());
 
-        // --- 4. 绘制鱼 ---
-        for (Fish fish : fishes) {
-            fish.draw(g2);
-        }
+        // 4. 鱼
+        for (Fish f : fishes) f.draw(g2);
 
-        // --- 5. 底部栏 ---
+        // 5. 底栏
         int bottomBarX = (bgWidth - bottomImage.getWidth()) / 2;
-        int bottomBarY = bgHeight - bottomBarHeight - 20; // 稍微抬高一点更美观
+        int bottomBarY = bgHeight - bottomBarHeight - 20;
         g2.drawImage(bottomImage, bottomBarX, bottomBarY, null);
 
-        // --- 6. 绘制炮台 ---
+        // 6. 炮台
         cannon.draw(g2);
 
-    }
+        // 7. HUD —— 积分
+        // 在底部栏左侧显示积分
+        int scoreX = bottomBarX + 20;
+        int scoreY = bottomBarY + 45;
+        String paddedScore = String.format("%06d", player.score);
+        scoreRenderer.drawScore(g2, paddedScore, scoreX, scoreY);
 
 
-    /**
-     * 生成一批鱼群（同方向成群进入）
-     */
-    private void spawnFishGroup(int count) {
 
-        int panelW = bgWidth;
-        int panelH = bgHeight;
+        // 8. 能量条
+        // --- 能量条展示 ---
+        int barX = 673;
+        int barY = 720;
 
-        // 随机决定从左边还是右边进入
-        boolean fromLeft = random.nextBoolean();
+        int fullW = energyBarImage.getWidth();
+        int fullH = energyBarImage.getHeight();
 
-        // 鱼群“主路线”的 Y
-        int baseY = random.nextInt(panelH - 100) + 50;
+        // 当前能量百分比
+        float percent = player.getEnergyPercent();
+        int showW = (int) (fullW * percent);
 
-        // 统一水平速度
-        double speedX = 2 + random.nextDouble() * 1.5;  // 2~3.5
-        if (!fromLeft) speedX = -speedX;
+        // 裁剪并绘制能量条
+        g2.setClip(barX, barY, showW, fullH);
+        g2.drawImage(energyBarImage, barX, barY, null);
 
-        for (int i = 0; i < count; i++) {
+        // 清除剪裁
+        g2.setClip(null);
 
-            // 获取一条鱼（使用工厂）
-            Fish fish = FishFactory.spawnNormal(bgWidth, bgHeight);
+        // 9.显示大餐提示
+        if (feastHintText != null) {
 
-            // —— 覆盖 Fish 自己的出生位置，强制做成鱼群 ——
-            if (fromLeft) {
-                fish.x = -fish.w - i * 40;                 // 从左侧排队进场
+            long now = System.currentTimeMillis();
+
+            if (now < feastHintEndTime) {
+
+                // 透明度从 1.0 逐渐降低到 0.0
+                float progress = (feastHintEndTime - now) / 1500f;
+                feastHintAlpha = Math.max(0f, Math.min(1f, progress));  // 限制范围 0-1
+
+
+                Graphics2D g2d = (Graphics2D) g2.create();
+                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, feastHintAlpha));
+
+                g2d.setFont(new Font("微软雅黑", Font.BOLD, 60));
+                g2d.setColor(new Color(255, 215, 0)); // 金黄
+
+                // 居中显示
+                int strW = g2d.getFontMetrics().stringWidth(feastHintText);
+                int strX = (bgWidth - strW) / 2;
+                int strY = bgHeight / 2;
+
+                g2d.drawString(feastHintText, strX, strY);
+                g2d.dispose();
             } else {
-                fish.x = panelW + fish.w + i * 40;         // 从右侧排队进场
+                feastHintText = null; // 显示结束
             }
-
-            fish.y = baseY + random.nextInt(80) - 40;      // 上下微乱
-
-            fish.targetX = fromLeft ? panelW + 200 : -200; // 目标游出对侧
-            fish.targetY = fish.y + random.nextInt(120) - 60;
-
-            fish.speedX = speedX;
-            fish.speedY = (random.nextDouble() - 0.5) * 0.8;
-
-            fishes.add(fish);
         }
+
+        //  10.金币动画绘制
+        coinManager.draw(g2);
+
+
+
     }
 
 
-        public int getBgHeight() {
+    private void showFeastHint(String text) {
+        feastHintText = text;
+        feastHintEndTime = System.currentTimeMillis() + 3000; // 显示 3 秒
+        feastHintAlpha = 1.0f;
+    }
+
+
+    // 启动鱼群大餐
+    private void triggerFeast() {
+        feastMode = true;
+        showFeastHint("鱼群大餐！");
+        for (int i = 0; i < 40; i++) {
+            fishes.add(FishFactory.spawnNormal(bgWidth, bgHeight));
+        }
+        for (int i = 0; i < 15; i++) {
+            fishes.add(FishFactory.spawnFeast(bgWidth, bgHeight));
+        }
+        feastEndTime = System.currentTimeMillis() + 10000;
+    }
+
+    public void triggerFreeze() {
+        freezeMode = true;
+        freezeEndTime = System.currentTimeMillis() + 3000;
+    }
+
+    public int getBgHeight() {
         return bgHeight;
     }
 
@@ -131,49 +188,47 @@ public class GamePanel extends JPanel {
         return bgWidth;
     }
 
-
+    // 构造方法
     public GamePanel() {
 
-        // === 加载背景和底部栏 ===
+        // 加载资源
         bgImage = ImageUtil.getImage("images/game_bg_2_hd.jpg");
         bottomImage = ImageUtil.getImage("images/bottom-bar.png");
+        energyBarImage = ImageUtil.getImage("images/energy-bar.png");
+        coinSilverSheet = ImageUtil.getImage("images/coinAni1.png");
+        coinGoldSheet = ImageUtil.getImage("images/coinAni2.png");
+        coinTextImg = ImageUtil.getImage("images/coinText.png");
+
 
         bgWidth = bgImage.getWidth();
         bgHeight = bgImage.getHeight();
         bottomBarHeight = bottomImage.getHeight();
 
+        player = new Player();
+        scoreRenderer = new ScoreRenderer("images/number_black.png");
+
+
         // 初始化鱼
         for (int i = 0; i < fishNum; i++) {
-            fishes.add(FishFactory.spawnNormal(bgWidth, bgHeight)
-            );
+            fishes.add(FishFactory.spawnNormal(bgWidth, bgHeight));
         }
 
-        // ===== 计算底部栏绘制位置（固定窗口，不需要随窗口变化） =====
-        int bottomBarX = (bgWidth - bottomImage.getWidth()) / 2;
-        int cannonCenterX = bottomBarX + bottomBarLocalCannonX;
-
-        // 初始化炮台
+        // 炮台
+        int cannonCenterX = (bgWidth - bottomImage.getWidth()) / 2 + bottomBarLocalCannonX;
         cannon = new Cannon(bgWidth, bgHeight, bottomBarHeight, cannonCenterX);
 
-        // 炮台旋转监听
-        addMouseMotionListener(new MouseAdapter() {
-        });
-
-
-        // 开火监听
+        // 鼠标事件
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
 
-                // 如果点的是按钮，则不旋转、不发射
-                if (cannon.onButtonClick(e.getX(), e.getY()))
-                    return;
+                // 射击按钮判断
+                if (cannon.onButtonClick(e.getX(), e.getY())) return;
 
-                // 炮口立即指向鼠标
                 cannon.rotateTo(e.getX(), e.getY());
-
-                // 发射
                 cannon.shoot();
+
+                // 这里将来加入子弹消耗能量 player.useEnergy()
             }
 
             @Override
@@ -182,42 +237,78 @@ public class GamePanel extends JPanel {
             }
         });
 
-
-
-        // 定时器刷新动画（固定窗口大小，不需要更新位置）
+        // 游戏循环
         Timer timer = new Timer(100, e -> {
 
-            int w = bgWidth;
-            int h = bgHeight;
+            long now = System.currentTimeMillis();
 
-            // 1. 更新所有鱼
+            // ===== 1. 更新鱼 =====
             for (Fish fish : fishes) {
-                fish.update(w, h);
+                fish.update(bgWidth, bgHeight, freezeMode);
             }
 
-            // 2. 删除游出屏幕的鱼
-            fishes.removeIf(f -> f.isOutOfScreen(w, h));
+            // ===== 2. 检测死亡鱼并触发金币动画 =====
+            for (Fish fish : fishes) {
+                if (fish.dead && !fish.remove) {
 
-            // 3. 保持零散鱼数量
+                    // 底部栏金币槽目标位置
+                    int bottomBarX = (bgWidth - bottomImage.getWidth()) / 2;
+                    int targetX = bottomBarX + 70;  // 调到你的金币槽位置
+                    int targetY = bgHeight - bottomBarHeight - 40;
+
+                    BufferedImage sheet = fish.highValue ? coinGoldSheet : coinSilverSheet;
+
+                    coinManager.add(new CoinAnimation(
+                            sheet,
+                            10,
+                            fish.x, fish.y,
+                            targetX, targetY,
+                            coinTextImg
+                    ));
+
+                    // 标记为已处理，避免重复加金币
+                    fish.remove = true;
+                }
+            }
+
+            // ===== 3. 删除离场 + 删除 dead fish =====
+            fishes.removeIf(f -> f.remove || f.isOutOfScreen(bgWidth, bgHeight));
+
+            // ===== 4. 大餐触发 =====
+            if (!feastTriggered && player.score >= 2000) {
+                triggerFeast();
+                feastTriggered = true;
+            }
+
+            // ===== 5. 大餐结束 =====
+            if (feastMode && now > feastEndTime) {
+                feastMode = false;
+                showFeastHint("大餐结束！");
+                fishes.clear();
+            }
+
+            // ===== 6. 补鱼 =====
             while (fishes.size() < 15) {
-                fishes.add(FishFactory.spawnNormal(bgWidth, bgHeight)
-                );
+                fishes.add(FishFactory.spawnNormal(bgWidth, bgHeight));
             }
 
-            // 4. 鱼群计时 & 不停刷鱼群
-            groupTimer++;
-            if (groupTimer >= GROUP_INTERVAL) {
-                spawnFishGroup(8);   // 每次刷 8 条鱼的鱼群
-                groupTimer = 0;
+            // ===== 7. 定身结束 =====
+            if (freezeMode && now > freezeEndTime) {
+                freezeMode = false;
             }
 
-            // 5. 更新炮台动画
+            // ===== 8. 金币动画更新 =====
+            coinManager.update();
+
+            // ===== 9. 炮台动画 =====
             cannon.update();
 
             repaint();
-
         });
-        timer.start();
 
+
+
+
+        timer.start();
     }
 }
