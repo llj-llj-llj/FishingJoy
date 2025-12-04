@@ -88,7 +88,7 @@ public class GamePanel extends JPanel {
             w.draw(g2);
         }
 
-// 可以顺便删除已经标记为 remove 的网
+        // 可以顺便删除已经标记为 remove 的网
         webs.removeIf(Web::isRemove);
 
 
@@ -232,6 +232,7 @@ public class GamePanel extends JPanel {
                 groupTimer = 0;
             }
 
+
             // 5. 更新炮台动画
             cannon.update();
             //6.更新子弹
@@ -239,12 +240,24 @@ public class GamePanel extends JPanel {
                 b.update();
                 // 检查每条鱼
                 for (Fish f : fishes) {
-                    if (!b.isVanished() && b.intersectsFish(f)) {
+                    if (!b.isVanished() && !f.isDead() && !f.isDying()&& b.intersectsFish(f)) {
                         // 生成网（等级等于炮台等级）
                         Web web = b.createWeb();
                         webs.add(web);
                         b.vanish();   //  子弹不再绘制
                         b.setRemove(true);     // 让子弹停下
+                        // 渔网创建瞬间就攻击所有碰到网的鱼
+                        Rectangle wr = web.getBounds();
+                        int atk = web.getAttack();
+
+                        for (Fish fish2 : fishes) {
+                            if (!fish2.shouldRemove() && wr.intersects(fish2.getBounds())) {
+                                fish2.hit(atk);
+                            }
+                        }
+
+
+
                         break; // 子弹只撞一次就结束
                     }
                 }
@@ -258,6 +271,28 @@ public class GamePanel extends JPanel {
             }
              // 移除已经透明消失的网
             webs.removeIf(Web::isRemove);
+            // 让渔网伤害鱼
+            for (Web web : webs) {
+                if (web.isRemove()) continue; // 完全消失就不攻击
+                Rectangle wr = web.getBounds();
+                int atk = web.getAttack();// 从 WebType 获取攻击力
+
+                for (Fish fish : fishes) {
+                    // 死鱼或已被移除不再计算
+                    if (fish.shouldRemove()) continue;
+
+                    // 网覆盖鱼 → 扣血
+                    if (wr.intersects(fish.getBounds())) {
+                        fish.hit(atk); // 每帧只会攻击一次
+                    }
+                }
+
+                // 每帧更新结束，统一重置标记
+                for (Fish fish : fishes) {
+                    fish.resetAttackFlag();
+                }
+            }
+
 
 
             repaint();

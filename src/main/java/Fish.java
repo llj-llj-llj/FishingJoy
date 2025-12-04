@@ -16,8 +16,11 @@ public class Fish {
     public final boolean specialFreeze;
     public final boolean highValue;
 
+    private boolean dying = false;
     private boolean dead = false;
     private boolean remove = false;
+    private boolean attackedThisFrame = false; // 新增，每帧只允许被攻击一次
+
 
     private List<BufferedImage> swimAnim = new ArrayList<>();
     private List<BufferedImage> deathAnim = new ArrayList<>();
@@ -79,13 +82,18 @@ public class Fish {
 
     public void update(int panelW, int panelH) {
 
-        if (dead) {
+
+        if (dying) {
+            // 死亡动画逐帧播放
             currentFrame++;
-            if (currentFrame >= deathAnim.size())
-                remove = true;
+
+            if (currentFrame >= deathAnim.size()) {
+                dying = false;
+                dead = true;       // 动画结束：真正死
+            }
             return;
         }
-
+        if (dead) return;// 完全死亡，不再动、不再画
         currentFrame = (currentFrame + 1) % swimAnim.size();
 
         double dx = targetX - x;
@@ -99,16 +107,21 @@ public class Fish {
             targetY = random.nextInt(panelH);
         }
     }
-
+    /** 尝试攻击鱼，确保每帧只攻击一次 */
     public void hit(int dmg) {
-        if (dead) return;
+        if (dead||dying|| attackedThisFrame) return;
         hp -= dmg;
         if (hp <= 0) {
             hp = 0;
-            dead = true;
+            dying = true;
             activeAnim = 1;
             currentFrame = 0;
         }
+        attackedThisFrame = true; // 标记本帧已被攻击
+    }
+    /** 重置每帧攻击标记 */
+    public void resetAttackFlag() {
+        attackedThisFrame = false;
     }
 
     public boolean shouldRemove() {
@@ -116,8 +129,19 @@ public class Fish {
     }
 
     public void draw(Graphics g) {
-        BufferedImage frame = (!dead ? swimAnim.get(currentFrame) : deathAnim.get(currentFrame));
 
+
+        BufferedImage frame ;
+        // 正在播放死亡动画
+        if (dying) {
+            int index = Math.min(currentFrame, deathAnim.size() - 1);
+            frame = deathAnim.get(index);
+        }// 完全死亡：不绘制
+        else if (dead){ return;}
+        // 正常状态
+        else {
+            frame = swimAnim.get(currentFrame);
+        }
         boolean right = targetX > x;
         if (!right) {
             Graphics2D g2 = (Graphics2D) g;
@@ -133,5 +157,15 @@ public class Fish {
     public Rectangle getBounds() {
         return new Rectangle(x, y, w, h);
     }
+
+    public boolean isDead() {
+        return dead;
+    }
+
+    public boolean isDying() {
+        return dying;
+    }
+
+
 
 }

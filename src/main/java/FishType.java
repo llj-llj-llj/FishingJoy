@@ -7,12 +7,12 @@ public enum FishType {
     FISH5("河豚", 4, 40, 3, "images/fish5.png", "遇到攻击会鼓起身体", 8),
     FISH6("章鱼", 5, 50, 4, "images/fish6.png", "触手灵活，为海底一霸", 12),
     FISH7("水母", 3, 35, 2, "images/fish7.png", "具有麻痹效果（可扩展）", 10),
-    FISH8("鮟鱇鱼", 6, 60, 5, "images/fish8.png", "深海凶狠鱼类，血量高", 12),
+    FISH8("鮟鱇鱼", 5, 60, 5, "images/fish8.png", "深海凶狠鱼类，血量高", 12),
     FISH9("黄斑鱼", 4, 45, 3, "images/fish9.png", "罕见的高价值鱼", 12),
-    FISH10("海龟", 8, 80, 5, "images/fish10.png", "超级肉盾，非常难捕获", 10),
+    FISH10("海龟", 7, 80, 5, "images/fish10.png", "超级肉盾，非常难捕获", 10),
 
-    SHARK_BLUE("蓝锤头鲨", 40, 80, 20, "images/shark1.png", "强力深海掠食者", 12),
-    SHARK_GOLD("金锤头鲨", 60, 200, 40, "images/shark2.png", "罕见黄金鲨鱼，价值极高", 12);
+    SHARK_BLUE("蓝锤头鲨", 20, 200, 20, "images/shark1.png", "强力深海掠食者", 12),
+    SHARK_GOLD("金锤头鲨", 30, 300, 40, "images/shark2.png", "罕见黄金鲨鱼，价值极高", 12);
 
     public final String name;
     public final int hp;

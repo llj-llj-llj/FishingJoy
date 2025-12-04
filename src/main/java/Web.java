@@ -9,12 +9,14 @@ public class Web {
     private int x, y;
     private int level;
     private boolean remove = false;
+    private WebType type;
 
     private long createTime;       // 创建时间
     private float alpha = 1f;      // 当前透明度
     private static final long FADE_TIME = 300;  // 渐隐时间（毫秒）
 
     public Web(int x, int y, int level) {
+        this.type = WebType.fromLevel(level);
         this.x = x;
         this.y = y;
         this.level = Math.max(1, Math.min(level, 7));
@@ -25,12 +27,11 @@ public class Web {
 
     private void loadImage() {
         try {
-            String path = "images/web" + level + ".png";
-            InputStream is = getClass().getClassLoader().getResourceAsStream(path);
+            InputStream is = getClass().getClassLoader().getResourceAsStream(type.spritePath);
             if (is != null) {
                 image = ImageIO.read(is);
             } else {
-                System.err.println("无法加载网图片: " + path);
+                System.err.println("无法加载网图片: " +type.spritePath);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -65,7 +66,14 @@ public class Web {
     /** 获取边界（碰撞检测用） */
     public Rectangle getBounds() {
         if (image == null) return new Rectangle(x, y, 1, 1);
-        return new Rectangle(x - image.getWidth()/2, y - image.getHeight()/2,
-                image.getWidth(), image.getHeight());
+        int bw = image.getWidth() / 2;   // 改成一半
+        int bh = image.getHeight() / 2;
+        return new Rectangle(x - bw/2, y - bh/2,
+                bw, bh);
     }
+    /** 给外部提供攻击力接口 */
+    public int getAttack() {
+        return type.attack;
+    }
+
 }
